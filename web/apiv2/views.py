@@ -73,20 +73,10 @@ if repconf.mongodb.enabled:
 
 es_as_db = False
 if repconf.elasticsearchdb.enabled and not repconf.elasticsearchdb.searchonly:
-    from elasticsearch import Elasticsearch
+    from dev_utils.elasticsearchdb import elastic_handler, get_analysis_index, get_query_by_info_id
 
     es_as_db = True
-    baseidx = repconf.elasticsearchdb.index
-    fullidx = baseidx + "-*"
-    es = Elasticsearch(
-        hosts=[
-            {
-                "host": repconf.elasticsearchdb.host,
-                "port": repconf.elasticsearchdb.port,
-            }
-        ],
-        timeout=60,
-    )
+    es = elastic_handler
 
 db = Database()
 
@@ -771,7 +761,7 @@ def tasks_search(request, md5=None, sha1=None, sha256=None):
                 for task in tasks:
                     buf = task.to_dict()
                     # Remove path information, just grab the file name
-                    buf["target"] = buf["target"].split("/")[-1]
+                    buf["target"] = buf["target"].rsplit("/", 1)[-1]
                     resp["data"].append(buf)
         else:
             resp = {"data": [], "error": False}
@@ -938,7 +928,7 @@ def tasks_view(request, task_id):
     if task:
         entry = task.to_dict()
         if entry["category"] != "url":
-            entry["target"] = entry["target"].split("/")[-1]
+            entry["target"] = entry["target"].rsplit("/", 1)[-1]
         entry["guest"] = {}
         if task.guest:
             entry["guest"] = task.guest.to_dict()
@@ -1210,7 +1200,10 @@ def tasks_iocs(request, task_id, detail=None):
     if repconf.mongodb.get("enabled") and not buf:
         buf = results_db.analysis.find_one({"info.id": int(task_id)})
     if es_as_db and not buf:
-        tmp = es.search(index=fullidx, doc_type="analysis", q='info.id: "%s"' % task_id)["hits"]["hits"]
+        tmp = es.search(
+            index=get_analysis_index(),
+            body=get_query_by_info_id(task_id)
+        )["hits"]["hits"]
         if tmp:
             buf = tmp[-1]["_source"]
         else:
@@ -1396,7 +1389,7 @@ def tasks_iocs(request, task_id, detail=None):
             else:
                 data["network"]["http"]["host"] = ""
             if "data" in req and "\r\n" in req["data"]:
-                data["network"]["http"]["data"] = req["data"].split("\r\n")[0]
+                data["network"]["http"]["data"] = req["data"].split("\r\n", 1)[0]
             else:
                 data["network"]["http"]["data"] = ""
             if "method" in req:
@@ -1988,7 +1981,10 @@ def tasks_config(request, task_id, cape_name=False):
             with open(jfile, "r") as jdata:
                 buf = json.load(jdata)
     if es_as_db and not buf:
-        tmp = es.search(index=fullidx, doc_type="analysis", q='info.id: "%s"' % str(task_id))["hits"]["hits"]
+        tmp = es.search(
+            index=get_analysis_index(),
+            body=get_query_by_info_id(task_id)
+        )["hits"]["hits"]
         if len(tmp) > 1:
             buf = tmp[-1]["_source"]
         elif len(tmp) == 1:

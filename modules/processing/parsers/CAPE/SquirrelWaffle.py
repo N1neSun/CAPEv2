@@ -35,7 +35,7 @@ MAX_STRING_SIZE = 32
 
 
 def string_from_offset(data, offset):
-    string = data[offset : offset + MAX_STRING_SIZE].split(b"\0")[0]
+    string = data[offset : offset + MAX_STRING_SIZE].split(b"\0", 1)[0]
     return string
 
 
@@ -60,7 +60,7 @@ def config(data):
     except Exception as e:
         return config
 
-    if pe != None:
+    if pe is not None:
         rdata = extract_rdata(pe)
         if len(rdata) == 0:
             return config

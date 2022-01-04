@@ -96,7 +96,7 @@ def get_rsrc(pe):
                 name = str(resource_type.name)
             else:
                 name = str(pefile.RESOURCE_TYPE.get(resource_type.struct.Id))
-            if name == None:
+            if name is None:
                 name = str(resource_type.struct.name)
             if hasattr(resource_type, "directory"):
                 for resource_id in resource_type.directory.entries:
@@ -133,7 +133,7 @@ def convert_to_real_ip(ip_str):
 
 def get_ip(ip_str, tag):
     if tag == "srva":
-        return convert_to_real_ip(ip_str.split(":")[0])
+        return convert_to_real_ip(ip_str.split(":", 1)[0])
     return ip_str
 
 
